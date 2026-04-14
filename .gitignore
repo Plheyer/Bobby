@@ -39,3 +39,13 @@ yarn-error.*
 # generated native folders
 /ios
 /android
+
+# Prettier
+.prettierrc
+.prettierignore
+
+# ESLint
+.eslintrc.js
+
+# VSCode
+.vscode/
