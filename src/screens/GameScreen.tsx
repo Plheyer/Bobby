@@ -506,13 +506,16 @@ export const GameScreen = (): JSX.Element => {
 
     return (
         <>
-            <SafeAreaView style={styles.screen} edges={['top', 'bottom', 'left', 'right']}>
+            <SafeAreaView
+                style={styles.screen}
+                edges={focusedInputCount > 0 ? ['top', 'bottom', 'left', 'right'] : ['bottom', 'left', 'right']}
+            >
                 <ScrollView
                     horizontal
                     keyboardShouldPersistTaps="handled"
                     contentContainerStyle={styles.tableWrapper}
                 >
-                    <View>
+                    <View style={styles.tableContent}>
                         <View style={styles.headerRow}>
                             <View style={[styles.headerCell, styles.roundHeaderCell]}>
                                 <Text style={styles.headerText}>Manche</Text>
@@ -806,19 +809,21 @@ const styles = StyleSheet.create({
     },
     headerButtonPressed: { opacity: 0.85 },
     headerButtonText: { color: '#fff', fontSize: 11, fontWeight: '700' },
-    tableWrapper: { paddingBottom: 20 },
+    tableWrapper: { paddingBottom: 20, minWidth: '100%' },
+    tableContent: { width: '100%' },
     headerRow: {
         flexDirection: 'row',
+        minWidth: '100%',
         borderBottomWidth: 1,
         borderBottomColor: '#d7def1',
         backgroundColor: '#f5f8ff',
     },
     headerCell: {
         width: 114,
-        minHeight: 68,
+        minHeight: 50,
         borderRightWidth: 1,
         borderRightColor: '#d7def1',
-        padding: 8,
+        padding: 6,
         justifyContent: 'center',
     },
     roundHeaderCell: { width: 68 },
@@ -828,8 +833,8 @@ const styles = StyleSheet.create({
         borderColor: '#c7d0ea',
         borderRadius: 7,
         paddingHorizontal: 8,
-        paddingVertical: 5,
-        marginBottom: 4,
+        paddingVertical: 4,
+        marginBottom: 1,
         fontSize: 14,
         flex: 1,
     },
@@ -846,7 +851,7 @@ const styles = StyleSheet.create({
     validateButtonText: { color: '#fff', fontSize: 14, fontWeight: '700' },
     addPlayerCell: {
         width: 31,
-        minHeight: 68,
+        minHeight: 50,
         alignItems: 'center',
         justifyContent: 'center',
         borderRightWidth: 1,
@@ -864,9 +869,14 @@ const styles = StyleSheet.create({
     addPlayerButtonPressed: { opacity: 0.8 },
     addPlayerButtonText: { color: '#fff', fontSize: 16, fontWeight: '700' },
     deleteText: { color: '#b02a2a', fontSize: 12 },
-    verticalArea: { maxHeight: '100%' },
-    verticalAreaContent: { paddingBottom: 400 },
-    dataRow: { flexDirection: 'row', borderBottomWidth: 1, borderBottomColor: '#ecf0fb' },
+    verticalArea: { flex: 1 },
+    verticalAreaContent: { paddingBottom: 400, minWidth: '100%' },
+    dataRow: {
+        flexDirection: 'row',
+        minWidth: '100%',
+        borderBottomWidth: 1,
+        borderBottomColor: '#ecf0fb',
+    },
     roundCell: {
         width: 55,
         borderRightWidth: 1,
