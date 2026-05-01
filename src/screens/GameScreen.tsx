@@ -62,6 +62,7 @@ export const GameScreen = (): JSX.Element => {
     const [promptInput, setPromptInput] = useState('100');
     const [editingPlayerIndex, setEditingPlayerIndex] = useState<number | null>(null);
     const [editingPlayerValue, setEditingPlayerValue] = useState('');
+    const [isAutoDeleting, setIsAutoDeleting] = useState(false);
 
     const players = useMemo(() => (game ? Array.from(game.players) : []), [game]);
 
@@ -310,6 +311,36 @@ export const GameScreen = (): JSX.Element => {
         setPromptVisible(false);
         await runAutoComplete(parsed);
     };
+
+    const hasAnyScore = (round: Round): boolean => {
+        return round.scores.some((s) => s.score !== null);
+    };
+
+    const canDeleteLastRound = (): boolean => {
+        if (!game || game.rounds.length <= 1) return false;
+        const lastRound = game.rounds[game.rounds.length - 1];
+        const secondToLastRound = game.rounds[game.rounds.length - 2];
+        return !hasAnyScore(lastRound) && !hasAnyScore(secondToLastRound);
+    };
+
+    useEffect(() => {
+        const autoDeleteLastRound = async () => {
+            if (!game || isAutoDeleting) return;
+
+            const shouldDelete = canDeleteLastRound();
+            if (shouldDelete) {
+                setIsAutoDeleting(true);
+                const newRounds = game.rounds.slice(0, -1);
+                await persistGame({
+                    ...game,
+                    rounds: newRounds,
+                });
+                setIsAutoDeleting(false);
+            }
+        };
+
+        void autoDeleteLastRound();
+    }, [game]);
 
     if (isLoading) {
         return (
