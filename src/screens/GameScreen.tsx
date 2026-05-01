@@ -481,7 +481,7 @@ export const GameScreen = (): JSX.Element => {
                                                 placeholder="0"
                                             />
                                             <Text style={styles.cumulativeText}>
-                                                Cumul: {roundToTwo(cumulative)}
+                                                Total : {roundToTwo(cumulative)}
                                             </Text>
                                         </View>
                                     );
