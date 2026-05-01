@@ -54,6 +54,98 @@ const withTrailingRound = (rounds: Round[], players: string[]): Round[] => {
     return rounds;
 };
 
+const parseScoreExpression = (value: string): number | null => {
+    const normalized = value
+        .trim()
+        .replace(/\s+/g, '')
+        .replace(/,/g, '.')
+        .replace(/=/g, '');
+    if (!normalized) return null;
+    if (!/^[0-9+\-*/.]+$/.test(normalized)) return null;
+
+    const tokens: Array<number | '+' | '-' | '*' | '/'> = [];
+    let i = 0;
+    let expectNumber = true;
+
+    while (i < normalized.length) {
+        const ch = normalized[i];
+
+        if (expectNumber) {
+            let sign = 1;
+            if (ch === '-') {
+                sign = -1;
+                i += 1;
+            } else if (ch === '+') {
+                i += 1;
+            }
+
+            const start = i;
+            let dotCount = 0;
+            while (i < normalized.length) {
+                const c = normalized[i];
+                if (c >= '0' && c <= '9') {
+                    i += 1;
+                    continue;
+                }
+                if (c === '.') {
+                    dotCount += 1;
+                    if (dotCount > 1) return null;
+                    i += 1;
+                    continue;
+                }
+                break;
+            }
+
+            const raw = normalized.slice(start, i);
+            if (!raw || raw === '.') return null;
+            const parsed = Number(raw);
+            if (!Number.isFinite(parsed)) return null;
+
+            tokens.push(sign * parsed);
+            expectNumber = false;
+            continue;
+        }
+
+        if (ch === '+' || ch === '-' || ch === '*' || ch === '/') {
+            tokens.push(ch);
+            i += 1;
+            expectNumber = true;
+            continue;
+        }
+
+        return null;
+    }
+
+    if (expectNumber || tokens.length === 0) return null;
+
+    const collapsed: Array<number | '+' | '-'> = [tokens[0] as number];
+    for (let idx = 1; idx < tokens.length; idx += 2) {
+        const op = tokens[idx] as '+' | '-' | '*' | '/';
+        const right = tokens[idx + 1] as number;
+        if (op === '*' || op === '/') {
+            const left = collapsed[collapsed.length - 1] as number;
+            if (op === '/' && right === 0) return null;
+            collapsed[collapsed.length - 1] = op === '*' ? left * right : left / right;
+        } else {
+            collapsed.push(op, right);
+        }
+    }
+
+    let result = collapsed[0] as number;
+    for (let idx = 1; idx < collapsed.length; idx += 2) {
+        const op = collapsed[idx] as '+' | '-';
+        const right = collapsed[idx + 1] as number;
+        result = op === '+' ? result + right : result - right;
+    }
+
+    if (!Number.isFinite(result)) return null;
+    return roundToTwo(result);
+};
+
+const sanitizeScoreInput = (value: string): string => {
+    return value.replace(/[^0-9+\-*/=.,]/g, '');
+};
+
 export const GameScreen = (): JSX.Element => {
     const route = useRoute<GameRoute>();
     const navigation = useNavigation<DrawerNavigationProp<RootDrawerParamList>>();
@@ -69,6 +161,8 @@ export const GameScreen = (): JSX.Element => {
     const [editingPlayerValue, setEditingPlayerValue] = useState('');
     const [isAutoDeleting, setIsAutoDeleting] = useState(false);
     const [focusedInputCount, setFocusedInputCount] = useState(0);
+    const [editingScoreCell, setEditingScoreCell] = useState<{ roundIndex: number; playerIndex: number } | null>(null);
+    const [editingScoreValue, setEditingScoreValue] = useState('');
     const [keyboardHeight, setKeyboardHeight] = useState(0);
     const [keyboardTopY, setKeyboardTopY] = useState<number | null>(null);
 
@@ -172,8 +266,7 @@ export const GameScreen = (): JSX.Element => {
     const updateScore = async (roundIndex: number, playerIndex: number, textValue: string) => {
         if (!game) return;
 
-        const parsed = textValue.trim() === '' ? null : Number(textValue.replace(',', '.'));
-        const normalized = parsed !== null && Number.isFinite(parsed) ? parsed : null;
+        const normalized = parseScoreExpression(textValue);
 
         const updatedRounds = game.rounds.map((round, idx) => {
             if (idx !== roundIndex) return round;
@@ -499,8 +592,14 @@ export const GameScreen = (): JSX.Element => {
                                     </View>
                                     {players.map((playerName, playerIndex) => {
                                         const scoreValue = round.scores[playerIndex]?.score;
-                                        const displayScore =
-                                            scoreValue === null ? '' : String(scoreValue);
+                                        const isEditingScore =
+                                            editingScoreCell?.roundIndex === roundIndex &&
+                                            editingScoreCell?.playerIndex === playerIndex;
+                                        const displayScore = isEditingScore
+                                            ? editingScoreValue
+                                            : scoreValue === null
+                                              ? ''
+                                              : String(scoreValue);
                                         const cumulative = calculateCumulativeScore(
                                             game.rounds,
                                             playerIndex,
@@ -512,20 +611,54 @@ export const GameScreen = (): JSX.Element => {
                                                 <TextInput
                                                     style={styles.scoreInput}
                                                     value={displayScore}
-                                                    onChangeText={(value) =>
-                                                        void updateScore(roundIndex, playerIndex, value)
-                                                    }
-                                                    onFocus={() =>
-                                                        setFocusedInputCount((current) => current + 1)
-                                                    }
-                                                    onBlur={() =>
-                                                        setFocusedInputCount((current) =>
-                                                            Math.max(0, current - 1),
-                                                        )
-                                                    }
-                                                    keyboardType="decimal-pad"
+                                                    onChangeText={(value) => {
+                                                        const sanitizedValue = sanitizeScoreInput(value);
+                                                        setEditingScoreCell({
+                                                            roundIndex,
+                                                            playerIndex,
+                                                        });
+                                                        setEditingScoreValue(sanitizedValue);
+                                                        if (
+                                                            parseScoreExpression(sanitizedValue) !== null ||
+                                                            sanitizedValue.trim() === ''
+                                                        ) {
+                                                            void updateScore(roundIndex, playerIndex, sanitizedValue);
+                                                        }
+                                                    }}
+                                                    keyboardType="default"
+                                                    autoCorrect={false}
                                                     placeholder="0"
                                                     disableFullscreenUI={true}
+                                                    onFocus={() => {
+                                                        setFocusedInputCount((current) => current + 1);
+                                                        setEditingScoreCell({
+                                                            roundIndex,
+                                                            playerIndex,
+                                                        });
+                                                        setEditingScoreValue(displayScore);
+                                                    }}
+                                                    onBlur={() => {
+                                                        setFocusedInputCount((current) =>
+                                                            Math.max(0, current - 1),
+                                                        );
+                                                        if (
+                                                            editingScoreCell?.roundIndex === roundIndex &&
+                                                            editingScoreCell?.playerIndex === playerIndex
+                                                        ) {
+                                                            if (
+                                                                parseScoreExpression(editingScoreValue) !== null ||
+                                                                editingScoreValue.trim() === ''
+                                                            ) {
+                                                                void updateScore(
+                                                                    roundIndex,
+                                                                    playerIndex,
+                                                                    editingScoreValue,
+                                                                );
+                                                            }
+                                                            setEditingScoreCell(null);
+                                                            setEditingScoreValue('');
+                                                        }
+                                                    }}
                                                 />
                                                 <Text style={styles.cumulativeText}>
                                                     Total : {roundToTwo(cumulative)}
