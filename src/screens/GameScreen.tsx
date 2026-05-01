@@ -1,3 +1,5 @@
+import { DrawerNavigationProp } from '@react-navigation/drawer';
+import { RouteProp, useNavigation, useRoute } from '@react-navigation/native';
 import { JSX, useEffect, useLayoutEffect, useMemo, useState } from 'react';
 import {
     ActivityIndicator,
@@ -10,8 +12,7 @@ import {
     TextInput,
     View,
 } from 'react-native';
-import { RouteProp, useRoute, useNavigation } from '@react-navigation/native';
-import { DrawerNavigationProp } from '@react-navigation/drawer';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import {
     createNewGame,
     getGame,
@@ -22,9 +23,9 @@ import {
 } from '../services/storage';
 import { Game, Round } from '../types/game';
 import {
-    canAutoComplete,
     calculateCumulativeScore,
     calculateMissingScore,
+    canAutoComplete,
     findMissingPlayer,
     roundToTwo,
 } from '../utils/ScoreCalculator';
@@ -344,7 +345,7 @@ export const GameScreen = (): JSX.Element => {
     }
 
     return (
-        <View style={styles.screen}>
+        <SafeAreaView style={styles.screen}>
             <View style={styles.quickActions}>
                 <Pressable
                     style={[
@@ -493,7 +494,7 @@ export const GameScreen = (): JSX.Element => {
                     </View>
                 </View>
             </Modal>
-        </View>
+        </SafeAreaView>
     );
 };
 

@@ -1,5 +1,6 @@
 import { JSX, useEffect, useState } from 'react';
 import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { getSettingsDefaults, loadSettings, saveSettings } from '../services/storage';
 import { Settings } from '../types/game';
 
@@ -33,7 +34,7 @@ export const SettingsScreen = (): JSX.Element => {
     };
 
     return (
-        <View style={styles.container}>
+        <SafeAreaView style={styles.container}>
             <Text style={styles.title}>Paramètres</Text>
 
             <Text style={styles.label}>Mode auto-complétion</Text>
@@ -72,7 +73,7 @@ export const SettingsScreen = (): JSX.Element => {
                 Utilisé quand le mode est fixe. En mode demandé, ce montant reste disponible comme
                 base.
             </Text>
-        </View>
+        </SafeAreaView>
     );
 };
 

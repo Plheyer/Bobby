@@ -1,7 +1,8 @@
+import { DrawerNavigationProp } from '@react-navigation/drawer';
+import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import { JSX, useCallback, useMemo, useState } from 'react';
 import { Alert, FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
-import { useFocusEffect, useNavigation } from '@react-navigation/native';
-import { DrawerNavigationProp } from '@react-navigation/drawer';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { deleteGame, loadGames } from '../services/storage';
 import { Game } from '../types/game';
 
@@ -77,7 +78,7 @@ export const HistoryScreen = (): JSX.Element => {
     };
 
     return (
-        <View style={styles.screen}>
+        <SafeAreaView style={styles.screen}>
             <Text style={styles.title}>Parties enregistrées</Text>
 
             <FlatList
@@ -121,7 +122,7 @@ export const HistoryScreen = (): JSX.Element => {
                     </Pressable>
                 </View>
             )}
-        </View>
+        </SafeAreaView>
     );
 };
 
