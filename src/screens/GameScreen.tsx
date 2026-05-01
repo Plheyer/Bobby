@@ -4,15 +4,18 @@ import { JSX, useEffect, useLayoutEffect, useMemo, useState } from 'react';
 import {
     ActivityIndicator,
     Alert,
+    Keyboard,
     Modal,
+    Platform,
     Pressable,
     ScrollView,
     StyleSheet,
     Text,
     TextInput,
+    useWindowDimensions,
     View,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
     createNewGame,
     getGame,
@@ -54,6 +57,8 @@ const withTrailingRound = (rounds: Round[], players: string[]): Round[] => {
 export const GameScreen = (): JSX.Element => {
     const route = useRoute<GameRoute>();
     const navigation = useNavigation<DrawerNavigationProp<RootDrawerParamList>>();
+    const insets = useSafeAreaInsets();
+    const { width: windowWidth, height: windowHeight } = useWindowDimensions();
 
     const [game, setGame] = useState<Game | null>(null);
     const [isLoading, setIsLoading] = useState(true);
@@ -63,8 +68,38 @@ export const GameScreen = (): JSX.Element => {
     const [editingPlayerIndex, setEditingPlayerIndex] = useState<number | null>(null);
     const [editingPlayerValue, setEditingPlayerValue] = useState('');
     const [isAutoDeleting, setIsAutoDeleting] = useState(false);
+    const [focusedInputCount, setFocusedInputCount] = useState(0);
+    const [keyboardHeight, setKeyboardHeight] = useState(0);
+    const [keyboardTopY, setKeyboardTopY] = useState<number | null>(null);
 
     const players = useMemo(() => (game ? Array.from(game.players) : []), [game]);
+    const keyboardOverlap = Math.max(
+        keyboardHeight,
+        keyboardTopY === null ? 0 : windowHeight - keyboardTopY,
+    );
+    const isLandscape = windowWidth > windowHeight;
+    const androidBottomInset = Platform.OS === 'android' ? Math.max(insets.bottom, 24) : insets.bottom;
+    const androidRightInset = Platform.OS === 'android' && isLandscape ? Math.max(insets.right, 24) : insets.right;
+    const verticalFloatingPadding = isLandscape ? 12 : androidBottomInset + 12;
+    const floatingButtonBottom =
+        keyboardOverlap > 0 ? keyboardOverlap + verticalFloatingPadding : verticalFloatingPadding;
+    const floatingButtonRight = androidRightInset + 12;
+
+    useEffect(() => {
+        const showSub = Keyboard.addListener('keyboardDidShow', (event) => {
+            setKeyboardHeight(event.endCoordinates.height);
+            setKeyboardTopY(event.endCoordinates.screenY);
+        });
+        const hideSub = Keyboard.addListener('keyboardDidHide', () => {
+            setKeyboardHeight(0);
+            setKeyboardTopY(null);
+        });
+
+        return () => {
+            showSub.remove();
+            hideSub.remove();
+        };
+    }, []);
 
     useEffect(() => {
         const boot = async () => {
@@ -95,6 +130,7 @@ export const GameScreen = (): JSX.Element => {
 
     useLayoutEffect(() => {
         navigation.setOptions({
+            headerShown: focusedInputCount === 0,
             headerRight: () => (
                 <Pressable
                     style={({ pressed }) => [
@@ -116,7 +152,7 @@ export const GameScreen = (): JSX.Element => {
                 </Pressable>
             ),
         });
-    }, [navigation]);
+    }, [navigation, focusedInputCount]);
 
     const persistGame = async (nextGame: Game) => {
         setGame(nextGame);
@@ -376,8 +412,183 @@ export const GameScreen = (): JSX.Element => {
     }
 
     return (
-        <SafeAreaView style={styles.screen} edges={['bottom', 'left', 'right']}>
-            <View style={styles.quickActions}>
+        <>
+            <SafeAreaView style={styles.screen} edges={['top', 'bottom', 'left', 'right']}>
+                <ScrollView
+                    horizontal
+                    keyboardShouldPersistTaps="handled"
+                    contentContainerStyle={styles.tableWrapper}
+                >
+                    <View>
+                        <View style={styles.headerRow}>
+                            <View style={[styles.headerCell, styles.roundHeaderCell]}>
+                                <Text style={styles.headerText}>Manche</Text>
+                            </View>
+                            {players.map((playerName, playerIndex) => {
+                                const isEditing = editingPlayerIndex === playerIndex;
+                                const canValidate =
+                                    editingPlayerValue.trim().length > 0 &&
+                                    !players.some(
+                                        (name, idx) =>
+                                            idx !== playerIndex && name === editingPlayerValue.trim(),
+                                    );
+
+                                return (
+                                    <View key={playerIndex} style={styles.headerCell}>
+                                        <View style={styles.playerHeaderRow}>
+                                            <TextInput
+                                                style={styles.playerNameInput}
+                                                value={isEditing ? editingPlayerValue : playerName}
+                                                onChangeText={setEditingPlayerValue}
+                                                onFocus={() => {
+                                                    setFocusedInputCount((current) => current + 1);
+                                                    startEditingPlayer(playerIndex);
+                                                }}
+                                                onBlur={() =>
+                                                    setFocusedInputCount((current) =>
+                                                        Math.max(0, current - 1),
+                                                    )
+                                                }
+                                                placeholder="Pseudo"
+                                                disableFullscreenUI={true}
+                                            />
+                                            {isEditing && (
+                                                <Pressable
+                                                    style={[
+                                                        styles.validateButton,
+                                                        !canValidate &&
+                                                            styles.validateButtonDisabled,
+                                                    ]}
+                                                    onPress={() => void savePlayerName(playerIndex)}
+                                                    disabled={!canValidate}
+                                                >
+                                                    <Text style={styles.validateButtonText}>✓</Text>
+                                                </Pressable>
+                                            )}
+                                        </View>
+                                        {players.length > 1 && focusedInputCount === 0 && (
+                                            <Pressable onPress={() => void removePlayer(playerIndex)}>
+                                                <Text style={styles.deleteText}>Suppr.</Text>
+                                            </Pressable>
+                                        )}
+                                    </View>
+                                );
+                            })}
+                            <View style={styles.addPlayerCell}>
+                                <Pressable
+                                    style={({ pressed }) => [
+                                        styles.addPlayerButton,
+                                        pressed && styles.addPlayerButtonPressed,
+                                    ]}
+                                    onPress={() => void addPlayer()}
+                                >
+                                    <Text style={styles.addPlayerButtonText}>+</Text>
+                                </Pressable>
+                            </View>
+                        </View>
+
+                        <ScrollView
+                            keyboardShouldPersistTaps="handled"
+                            style={styles.verticalArea}
+                            contentContainerStyle={styles.verticalAreaContent}
+                        >
+                            {game.rounds.map((round, roundIndex) => (
+                                <View key={roundIndex} style={styles.dataRow}>
+                                    <View style={[styles.roundCell, styles.roundHeaderCell]}>
+                                        <Text style={styles.roundText}>{roundIndex + 1}</Text>
+                                    </View>
+                                    {players.map((playerName, playerIndex) => {
+                                        const scoreValue = round.scores[playerIndex]?.score;
+                                        const displayScore =
+                                            scoreValue === null ? '' : String(scoreValue);
+                                        const cumulative = calculateCumulativeScore(
+                                            game.rounds,
+                                            playerIndex,
+                                            roundIndex,
+                                        );
+
+                                        return (
+                                            <View key={playerIndex} style={styles.scoreCell}>
+                                                <TextInput
+                                                    style={styles.scoreInput}
+                                                    value={displayScore}
+                                                    onChangeText={(value) =>
+                                                        void updateScore(roundIndex, playerIndex, value)
+                                                    }
+                                                    onFocus={() =>
+                                                        setFocusedInputCount((current) => current + 1)
+                                                    }
+                                                    onBlur={() =>
+                                                        setFocusedInputCount((current) =>
+                                                            Math.max(0, current - 1),
+                                                        )
+                                                    }
+                                                    keyboardType="decimal-pad"
+                                                    placeholder="0"
+                                                    disableFullscreenUI={true}
+                                                />
+                                                <Text style={styles.cumulativeText}>
+                                                    Total : {roundToTwo(cumulative)}
+                                                </Text>
+                                            </View>
+                                        );
+                                    })}
+                                    <View style={styles.addPlayerSpacer} />
+                                </View>
+                            ))}
+                        </ScrollView>
+
+                        <Modal
+                            visible={promptVisible}
+                            transparent
+                            animationType="fade"
+                            onRequestClose={() => setPromptVisible(false)}
+                        >
+                            <View style={styles.modalBackdrop}>
+                                <View style={styles.modalCard}>
+                                    <Text style={styles.modalTitle}>Montant à compléter</Text>
+                                    <TextInput
+                                        value={promptInput}
+                                        onChangeText={setPromptInput}
+                                        onFocus={() =>
+                                            setFocusedInputCount((current) => current + 1)
+                                        }
+                                        onBlur={() =>
+                                            setFocusedInputCount((current) =>
+                                                Math.max(0, current - 1),
+                                            )
+                                        }
+                                        keyboardType="decimal-pad"
+                                        style={styles.modalInput}
+                                        disableFullscreenUI={true}
+                                    />
+                                    <View style={styles.modalActions}>
+                                        <Pressable
+                                            style={styles.modalButtonSecondary}
+                                            onPress={() => setPromptVisible(false)}
+                                        >
+                                            <Text style={styles.modalButtonSecondaryText}>Annuler</Text>
+                                        </Pressable>
+                                        <Pressable
+                                            style={styles.modalButtonPrimary}
+                                            onPress={() => void submitPromptAutoComplete()}
+                                        >
+                                            <Text style={styles.modalButtonPrimaryText}>Valider</Text>
+                                        </Pressable>
+                                    </View>
+                                </View>
+                            </View>
+                        </Modal>
+                    </View>
+                </ScrollView>
+            </SafeAreaView>
+            <View
+                pointerEvents="box-none"
+                style={[
+                    styles.floatingButtonContainer,
+                    { bottom: floatingButtonBottom, right: floatingButtonRight },
+                ]}
+            >
                 <Pressable
                     style={[
                         styles.quickButton,
@@ -389,143 +600,7 @@ export const GameScreen = (): JSX.Element => {
                     <Text style={styles.quickButtonText}>Compléter</Text>
                 </Pressable>
             </View>
-
-            <ScrollView
-                horizontal
-                keyboardShouldPersistTaps="handled"
-                contentContainerStyle={styles.tableWrapper}
-            >
-                <View>
-                    <View style={styles.headerRow}>
-                        <View style={[styles.headerCell, styles.roundHeaderCell]}>
-                            <Text style={styles.headerText}>Manche</Text>
-                        </View>
-                        {players.map((playerName, playerIndex) => {
-                            const isEditing = editingPlayerIndex === playerIndex;
-                            const canValidate =
-                                editingPlayerValue.trim().length > 0 &&
-                                !players.some(
-                                    (name, idx) =>
-                                        idx !== playerIndex && name === editingPlayerValue.trim(),
-                                );
-
-                            return (
-                                <View key={playerIndex} style={styles.headerCell}>
-                                    <View style={styles.playerHeaderRow}>
-                                        <TextInput
-                                            style={styles.playerNameInput}
-                                            value={isEditing ? editingPlayerValue : playerName}
-                                            onChangeText={setEditingPlayerValue}
-                                            onFocus={() => startEditingPlayer(playerIndex)}
-                                            placeholder="Pseudo"
-                                        />
-                                        {isEditing && (
-                                            <Pressable
-                                                style={[
-                                                    styles.validateButton,
-                                                    !canValidate && styles.validateButtonDisabled,
-                                                ]}
-                                                onPress={() => void savePlayerName(playerIndex)}
-                                                disabled={!canValidate}
-                                            >
-                                                <Text style={styles.validateButtonText}>✓</Text>
-                                            </Pressable>
-                                        )}
-                                    </View>
-                                    {players.length > 1 && (
-                                        <Pressable onPress={() => void removePlayer(playerIndex)}>
-                                            <Text style={styles.deleteText}>Suppr.</Text>
-                                        </Pressable>
-                                    )}
-                                </View>
-                            );
-                        })}
-                        <View style={styles.addPlayerCell}>
-                            <Pressable
-                                style={({ pressed }) => [
-                                    styles.addPlayerButton,
-                                    pressed && styles.addPlayerButtonPressed,
-                                ]}
-                                onPress={() => void addPlayer()}
-                            >
-                                <Text style={styles.addPlayerButtonText}>+</Text>
-                            </Pressable>
-                        </View>
-                    </View>
-
-                    <ScrollView keyboardShouldPersistTaps="handled" style={styles.verticalArea} contentContainerStyle={styles.verticalAreaContent}>
-                        {game.rounds.map((round, roundIndex) => (
-                            <View key={roundIndex} style={styles.dataRow}>
-                                <View style={[styles.roundCell, styles.roundHeaderCell]}>
-                                    <Text style={styles.roundText}>{roundIndex + 1}</Text>
-                                </View>
-                                {players.map((playerName, playerIndex) => {
-                                    const scoreValue = round.scores[playerIndex]?.score;
-                                    const displayScore =
-                                        scoreValue === null ? '' : String(scoreValue);
-                                    const cumulative = calculateCumulativeScore(
-                                        game.rounds,
-                                        playerIndex,
-                                        roundIndex,
-                                    );
-
-                                    return (
-                                        <View key={playerIndex} style={styles.scoreCell}>
-                                            <TextInput
-                                                style={styles.scoreInput}
-                                                value={displayScore}
-                                                onChangeText={(value) =>
-                                                    void updateScore(roundIndex, playerIndex, value)
-                                                }
-                                                keyboardType="decimal-pad"
-                                                placeholder="0"
-                                            />
-                                            <Text style={styles.cumulativeText}>
-                                                Total : {roundToTwo(cumulative)}
-                                            </Text>
-                                        </View>
-                                    );
-                                })}
-                                <View style={styles.addPlayerSpacer} />
-                            </View>
-                        ))}
-                    </ScrollView>
-                </View>
-            </ScrollView>
-
-            <Modal
-                visible={promptVisible}
-                transparent
-                animationType="fade"
-                onRequestClose={() => setPromptVisible(false)}
-            >
-                <View style={styles.modalBackdrop}>
-                    <View style={styles.modalCard}>
-                        <Text style={styles.modalTitle}>Montant à compléter</Text>
-                        <TextInput
-                            value={promptInput}
-                            onChangeText={setPromptInput}
-                            keyboardType="decimal-pad"
-                            style={styles.modalInput}
-                        />
-                        <View style={styles.modalActions}>
-                            <Pressable
-                                style={styles.modalButtonSecondary}
-                                onPress={() => setPromptVisible(false)}
-                            >
-                                <Text style={styles.modalButtonSecondaryText}>Annuler</Text>
-                            </Pressable>
-                            <Pressable
-                                style={styles.modalButtonPrimary}
-                                onPress={() => void submitPromptAutoComplete()}
-                            >
-                                <Text style={styles.modalButtonPrimaryText}>Valider</Text>
-                            </Pressable>
-                        </View>
-                    </View>
-                </View>
-            </Modal>
-        </SafeAreaView>
+        </>
     );
 };
 
@@ -583,6 +658,12 @@ const styles = StyleSheet.create({
     },
     quickButtonDisabled: { opacity: 0.4 },
     quickButtonText: { color: '#fff', fontWeight: '600' },
+    floatingButtonContainer: {
+        position: 'absolute',
+        right: 12,
+        zIndex: 20,
+        elevation: 20,
+    },
     headerButton: {
         marginRight: 10,
         backgroundColor: '#1f6feb',
@@ -600,14 +681,14 @@ const styles = StyleSheet.create({
         backgroundColor: '#f5f8ff',
     },
     headerCell: {
-        width: 170,
+        width: 114,
         minHeight: 68,
         borderRightWidth: 1,
         borderRightColor: '#d7def1',
         padding: 8,
         justifyContent: 'center',
     },
-    roundHeaderCell: { width: 82 },
+    roundHeaderCell: { width: 68 },
     headerText: { fontWeight: '700', color: '#1d2a4f' },
     playerNameInput: {
         borderWidth: 1,
@@ -623,38 +704,38 @@ const styles = StyleSheet.create({
     validateButton: {
         backgroundColor: '#1f6feb',
         borderRadius: 999,
-        width: 28,
-        height: 28,
+        width: 24,
+        height: 24,
         alignItems: 'center',
         justifyContent: 'center',
     },
     validateButtonDisabled: { opacity: 0.35 },
-    validateButtonText: { color: '#fff', fontSize: 16, fontWeight: '700' },
+    validateButtonText: { color: '#fff', fontSize: 14, fontWeight: '700' },
     addPlayerCell: {
-        width: 46,
+        width: 31,
         minHeight: 68,
         alignItems: 'center',
         justifyContent: 'center',
         borderRightWidth: 1,
         borderRightColor: '#d7def1',
     },
-    addPlayerSpacer: { width: 46, borderRightWidth: 1, borderRightColor: '#ecf0fb' },
+    addPlayerSpacer: { width: 31, borderRightWidth: 1, borderRightColor: '#ecf0fb' },
     addPlayerButton: {
-        width: 30,
-        height: 30,
-        borderRadius: 15,
+        width: 22,
+        height: 22,
+        borderRadius: 11,
         alignItems: 'center',
         justifyContent: 'center',
         backgroundColor: '#1f6feb',
     },
     addPlayerButtonPressed: { opacity: 0.8 },
-    addPlayerButtonText: { color: '#fff', fontSize: 20, fontWeight: '700' },
+    addPlayerButtonText: { color: '#fff', fontSize: 16, fontWeight: '700' },
     deleteText: { color: '#b02a2a', fontSize: 12 },
     verticalArea: { maxHeight: '100%' },
     verticalAreaContent: { paddingBottom: 400 },
     dataRow: { flexDirection: 'row', borderBottomWidth: 1, borderBottomColor: '#ecf0fb' },
     roundCell: {
-        width: 82,
+        width: 55,
         borderRightWidth: 1,
         borderRightColor: '#ecf0fb',
         alignItems: 'center',
@@ -662,7 +743,7 @@ const styles = StyleSheet.create({
         backgroundColor: '#fbfcff',
     },
     roundText: { fontWeight: '700', color: '#30406b' },
-    scoreCell: { width: 170, borderRightWidth: 1, borderRightColor: '#ecf0fb', padding: 8 },
+    scoreCell: { width: 114, borderRightWidth: 1, borderRightColor: '#ecf0fb', padding: 8 },
     scoreInput: {
         borderWidth: 1,
         borderColor: '#c7d0ea',
