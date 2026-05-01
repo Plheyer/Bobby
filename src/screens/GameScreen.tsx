@@ -345,7 +345,7 @@ export const GameScreen = (): JSX.Element => {
     }
 
     return (
-        <SafeAreaView style={styles.screen}>
+        <SafeAreaView style={styles.screen} edges={['bottom', 'left', 'right']}>
             <View style={styles.quickActions}>
                 <Pressable
                     style={[
@@ -422,7 +422,7 @@ export const GameScreen = (): JSX.Element => {
                         </View>
                     </View>
 
-                    <ScrollView keyboardShouldPersistTaps="handled" style={styles.verticalArea}>
+                    <ScrollView keyboardShouldPersistTaps="handled" style={styles.verticalArea} contentContainerStyle={styles.verticalAreaContent}>
                         {game.rounds.map((round, roundIndex) => (
                             <View key={roundIndex} style={styles.dataRow}>
                                 <View style={[styles.roundCell, styles.roundHeaderCell]}>
@@ -620,6 +620,7 @@ const styles = StyleSheet.create({
     addPlayerButtonText: { color: '#fff', fontSize: 20, fontWeight: '700' },
     deleteText: { color: '#b02a2a', fontSize: 12 },
     verticalArea: { maxHeight: '100%' },
+    verticalAreaContent: { paddingBottom: 400 },
     dataRow: { flexDirection: 'row', borderBottomWidth: 1, borderBottomColor: '#ecf0fb' },
     roundCell: {
         width: 82,
