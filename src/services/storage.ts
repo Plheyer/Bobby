@@ -1,5 +1,5 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { Game, Settings, Round } from '../types/game';
+import { Game, Round, Settings } from '../types/game';
 import { createId } from '../utils/ScoreCalculator';
 
 const GAMES_KEY = '@bobby_games';
@@ -9,6 +9,7 @@ const CURRENT_GAME_KEY = '@bobby_current_game';
 const DEFAULT_SETTINGS: Settings = {
     autoCompleteMode: 'fixed',
     fixedTotal: 100,
+    scoreOrder: 'highest-wins',
 };
 
 const createEmptyRound = (players: string[]): Round => ({

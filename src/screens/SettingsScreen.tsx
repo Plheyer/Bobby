@@ -33,6 +33,10 @@ export const SettingsScreen = (): JSX.Element => {
         void updateSettings({ ...settings, fixedTotal: nextTotal });
     };
 
+    const handleScoreOrderChange = (scoreOrder: 'highest-wins' | 'lowest-wins') => {
+        void updateSettings({ ...settings, scoreOrder });
+    };
+
     return (
         <SafeAreaView style={styles.container}>
             <Text style={styles.title}>Paramètres</Text>
@@ -73,6 +77,28 @@ export const SettingsScreen = (): JSX.Element => {
                 Utilisé quand le mode est fixe. En mode demandé, ce montant reste disponible comme
                 base.
             </Text>
+
+            <Text style={[styles.label, { marginTop: 18 }]}>Classement (TTS)</Text>
+            <View style={styles.modeRow}>
+                <Pressable
+                    style={[
+                        styles.modeButton,
+                        settings.scoreOrder === 'highest-wins' && styles.modeButtonActive,
+                    ]}
+                    onPress={() => handleScoreOrderChange('highest-wins')}
+                >
+                    <Text style={styles.modeButtonText}>Plus de points = gagne</Text>
+                </Pressable>
+                <Pressable
+                    style={[
+                        styles.modeButton,
+                        settings.scoreOrder === 'lowest-wins' && styles.modeButtonActive,
+                    ]}
+                    onPress={() => handleScoreOrderChange('lowest-wins')}
+                >
+                    <Text style={styles.modeButtonText}>Moins de points = gagne</Text>
+                </Pressable>
+            </View>
         </SafeAreaView>
     );
 };

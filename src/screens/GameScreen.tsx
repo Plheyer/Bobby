@@ -742,6 +742,8 @@ export const GameScreen = (): JSX.Element => {
                             if (isSpeaking) return;
                             if (!game) return;
                             setIsSpeaking(true);
+                            const settings = await loadSettings();
+                            const highScoreWins = settings.scoreOrder === 'highest-wins';
                             const lastRoundIndex = game.rounds.length - 1;
                             const totals = game.players
                                 ? Array.from(game.players).map((p, idx) => ({
@@ -754,7 +756,9 @@ export const GameScreen = (): JSX.Element => {
                                   }))
                                 : [];
                             // sort by total ascending (worst to best)
-                            totals.sort((a, b) => b.total - a.total);
+                            totals.sort((a, b) =>
+                                highScoreWins ? a.total - b.total : b.total - a.total,
+                            );
                             if (totals.length === 0) {
                                 setIsSpeaking(false);
                                 return;
@@ -762,9 +766,8 @@ export const GameScreen = (): JSX.Element => {
                             const parts = totals.map((t) => `${t.name} avec ${t.total}`);
                             if (parts.length > 0) parts.pop();
                             const best = totals[totals.length - 1];
-                            const toSpeak = `Le nullos dernier : ${parts.join(
-                                ', ',
-                            )}. Puis le king : ${best.name} avec ${best.total}`;
+                            const trailing = parts.length > 0 ? `Le nullos dernier : ${parts.join(', ')}. ` : '';
+                            const toSpeak = `${trailing}Puis le king : ${best.name} avec ${best.total}`;
                             try {
                                 const alreadySpeaking = await Speech.isSpeakingAsync();
                                 if (alreadySpeaking) {

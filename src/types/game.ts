@@ -17,4 +17,5 @@ export interface Game {
 export interface Settings {
     autoCompleteMode: 'fixed' | 'prompt';
     fixedTotal: number;
+    scoreOrder: 'highest-wins' | 'lowest-wins';
 }
