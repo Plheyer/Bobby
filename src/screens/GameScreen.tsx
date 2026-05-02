@@ -165,6 +165,7 @@ export const GameScreen = (): JSX.Element => {
     const [editingScoreValue, setEditingScoreValue] = useState('');
     const [keyboardHeight, setKeyboardHeight] = useState(0);
     const [keyboardTopY, setKeyboardTopY] = useState<number | null>(null);
+    const [isSpeaking, setIsSpeaking] = useState(false);
 
     const players = useMemo(() => (game ? Array.from(game.players) : []), [game]);
     const keyboardOverlap = Math.max(
@@ -226,27 +227,90 @@ export const GameScreen = (): JSX.Element => {
         navigation.setOptions({
             headerShown: focusedInputCount === 0,
             headerRight: () => (
-                <Pressable
-                    style={({ pressed }) => [
-                        styles.headerButton,
-                        pressed && styles.headerButtonPressed,
-                    ]}
-                    onPress={() => {
-                        Alert.alert(
-                            'Nouvelle partie',
-                            "Créer une nouvelle partie ? La partie actuelle reste dans l'historique.",
-                            [
-                                { text: 'Annuler', style: 'cancel' },
-                                { text: 'Confirmer', onPress: () => void createFreshGame() },
-                            ],
-                        );
-                    }}
-                >
-                    <Text style={styles.headerButtonText}>Nouvelle partie</Text>
-                </Pressable>
+                <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                    {focusedInputCount === 0 && (
+                        <Pressable
+                            style={({ pressed }) => [
+                                styles.headerButton,
+                                pressed && styles.headerButtonPressed,
+                                isSpeaking && styles.headerButtonDisabled,
+                                { marginRight: 8 },
+                            ]}
+                            disabled={isSpeaking}
+                            onPress={() => {
+                                if (isSpeaking) return;
+                                if (!game) return;
+                                setIsSpeaking(true);
+                                const lastRoundIndex = game.rounds.length - 1;
+                                const totals = game.players
+                                    ? Array.from(game.players).map((p, idx) => ({
+                                          name: p,
+                                          total: calculateCumulativeScore(
+                                              game.rounds,
+                                              idx,
+                                              lastRoundIndex,
+                                          ),
+                                      }))
+                                    : [];
+                                // sort by total ascending (worst to best)
+                                totals.sort((a, b) => b.total - a.total);
+                                if (totals.length === 0) {
+                                    setIsSpeaking(false);
+                                    return;
+                                }
+                                const parts = totals.map((t) => `${t.name} avec ${t.total}`);
+                                if (parts.length > 0) parts.pop();
+                                const best = totals[totals.length - 1];
+                                const toSpeak = `Le nullos dernier : ${parts.join(
+                                    ', ',
+                                )}. Puis le king : ${best.name} avec ${best.total}`;
+                                // @ts-ignore: optional dependency
+                                import('expo-speech')
+                                    .then((mod) => {
+                                        try {
+                                            mod.speak(toSpeak, {
+                                                language: 'fr-FR',
+                                                rate: 0.85,
+                                                pitch: 0.6,
+                                                onDone: () => setIsSpeaking(false),
+                                                onError: () => setIsSpeaking(false),
+                                            });
+                                        } catch (e) {
+                                            console.warn('TTS speak failed', e);
+                                            setIsSpeaking(false);
+                                        }
+                                    })
+                                    .catch(() => {
+                                        console.warn('expo-speech not available');
+                                        setIsSpeaking(false);
+                                    });
+                            }}
+                        >
+                            <Text style={styles.headerButtonText}>Classement</Text>
+                        </Pressable>
+                    )}
+                    <Pressable
+                        style={({ pressed }) => [
+                            styles.headerButton,
+                            pressed && styles.headerButtonPressed,
+                        ]}
+                        onPress={() => {
+                            Alert.alert(
+                                'Nouvelle partie',
+                                "Créer une nouvelle partie ? La partie actuelle reste dans l'historique.",
+                                [
+                                    { text: 'Annuler', style: 'cancel' },
+                                    { text: 'Confirmer', onPress: () => void createFreshGame() },
+                                ],
+                            );
+                        }}
+                    >
+                        <Text style={styles.headerButtonText}>Nouvelle partie</Text>
+                    </Pressable>
+                </View>
             ),
         });
-    }, [navigation, focusedInputCount]);
+    }, [navigation, focusedInputCount, game, isSpeaking]);
 
     const persistGame = async (nextGame: Game) => {
         setGame(nextGame);
@@ -808,6 +872,7 @@ const styles = StyleSheet.create({
         paddingVertical: 6,
     },
     headerButtonPressed: { opacity: 0.85 },
+    headerButtonDisabled: { opacity: 0.45 },
     headerButtonText: { color: '#fff', fontSize: 11, fontWeight: '700' },
     tableWrapper: { paddingBottom: 20, minWidth: '100%' },
     tableContent: { width: '100%' },
