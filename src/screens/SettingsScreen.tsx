@@ -127,6 +127,7 @@ export const SettingsScreen = (): JSX.Element => {
                 keyboardType="decimal-pad"
                 style={styles.input}
                 placeholder="100"
+                placeholderTextColor="#434343ff"
                 editable={settings.autoCompleteMode === 'fixed'}
                 disableFullscreenUI={true}
             />
@@ -167,6 +168,7 @@ export const SettingsScreen = (): JSX.Element => {
                             handleNullosBlur();
                         }}
                         style={styles.input}
+                        placeholderTextColor="#434343ff"
                         disableFullscreenUI={true}
                     />
 
@@ -180,6 +182,7 @@ export const SettingsScreen = (): JSX.Element => {
                             handleKingBlur();
                         }}
                         style={styles.input}
+                        placeholderTextColor="#434343ff"
                         disableFullscreenUI={true}
                     />
                 </ScrollView>

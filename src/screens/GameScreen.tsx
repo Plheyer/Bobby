@@ -417,6 +417,10 @@ export const GameScreen = (): JSX.Element => {
             };
         });
 
+        // Clear editing state so the new score displays
+        setEditingScoreCell(null);
+        setEditingScoreValue('');
+
         await persistGame({
             ...game,
             rounds: withTrailingRound(updatedRounds, players),
@@ -550,6 +554,7 @@ export const GameScreen = (): JSX.Element => {
                                                     )
                                                 }
                                                 placeholder="Pseudo"
+                                                placeholderTextColor="#434343ff"
                                                 disableFullscreenUI={true}
                                             />
                                             {isEditing && (
@@ -635,6 +640,7 @@ export const GameScreen = (): JSX.Element => {
                                                     keyboardType="default"
                                                     autoCorrect={false}
                                                     placeholder="0"
+                                                    placeholderTextColor="#434343ff"
                                                     disableFullscreenUI={true}
                                                     onFocus={() => {
                                                         setFocusedInputCount((current) => current + 1);
@@ -699,6 +705,8 @@ export const GameScreen = (): JSX.Element => {
                                             )
                                         }
                                         keyboardType="decimal-pad"
+                                        placeholder="Montant"
+                                        placeholderTextColor="#434343ff"
                                         style={styles.modalInput}
                                         disableFullscreenUI={true}
                                     />
