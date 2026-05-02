@@ -766,8 +766,8 @@ export const GameScreen = (): JSX.Element => {
                             const parts = totals.map((t) => `${t.name} avec ${t.total}`);
                             if (parts.length > 0) parts.pop();
                             const best = totals[totals.length - 1];
-                            const trailing = parts.length > 0 ? `Le nullos dernier : ${parts.join(', ')}. ` : '';
-                            const toSpeak = `${trailing}Puis le king : ${best.name} avec ${best.total}`;
+                            const trailing = parts.length > 0 ? `${settings.nullosLabel} : ${parts.join(', ')}. ` : '';
+                            const toSpeak = `${trailing}${settings.kingLabel} : ${best.name} avec ${best.total}`;
                             try {
                                 const alreadySpeaking = await Speech.isSpeakingAsync();
                                 if (alreadySpeaking) {

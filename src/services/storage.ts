@@ -10,6 +10,8 @@ const DEFAULT_SETTINGS: Settings = {
     autoCompleteMode: 'fixed',
     fixedTotal: 100,
     scoreOrder: 'highest-wins',
+    nullosLabel: 'Le nullos dernier',
+    kingLabel: 'Puis le king',
 };
 
 const createEmptyRound = (players: string[]): Round => ({

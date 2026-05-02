@@ -18,4 +18,6 @@ export interface Settings {
     autoCompleteMode: 'fixed' | 'prompt';
     fixedTotal: number;
     scoreOrder: 'highest-wins' | 'lowest-wins';
+    nullosLabel: string;
+    kingLabel: string;
 }
