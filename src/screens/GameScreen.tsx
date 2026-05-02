@@ -1,5 +1,6 @@
 import { DrawerNavigationProp } from '@react-navigation/drawer';
 import { RouteProp, useNavigation, useRoute } from '@react-navigation/native';
+import * as Speech from 'expo-speech';
 import { JSX, useEffect, useLayoutEffect, useMemo, useState } from 'react';
 import {
     ActivityIndicator,
@@ -228,67 +229,6 @@ export const GameScreen = (): JSX.Element => {
             headerShown: focusedInputCount === 0,
             headerRight: () => (
                 <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                    {focusedInputCount === 0 && (
-                        <Pressable
-                            style={({ pressed }) => [
-                                styles.headerButton,
-                                pressed && styles.headerButtonPressed,
-                                isSpeaking && styles.headerButtonDisabled,
-                                { marginRight: 8 },
-                            ]}
-                            disabled={isSpeaking}
-                            onPress={() => {
-                                if (isSpeaking) return;
-                                if (!game) return;
-                                setIsSpeaking(true);
-                                const lastRoundIndex = game.rounds.length - 1;
-                                const totals = game.players
-                                    ? Array.from(game.players).map((p, idx) => ({
-                                          name: p,
-                                          total: calculateCumulativeScore(
-                                              game.rounds,
-                                              idx,
-                                              lastRoundIndex,
-                                          ),
-                                      }))
-                                    : [];
-                                // sort by total ascending (worst to best)
-                                totals.sort((a, b) => b.total - a.total);
-                                if (totals.length === 0) {
-                                    setIsSpeaking(false);
-                                    return;
-                                }
-                                const parts = totals.map((t) => `${t.name} avec ${t.total}`);
-                                if (parts.length > 0) parts.pop();
-                                const best = totals[totals.length - 1];
-                                const toSpeak = `Le nullos dernier : ${parts.join(
-                                    ', ',
-                                )}. Puis le king : ${best.name} avec ${best.total}`;
-                                // @ts-ignore: optional dependency
-                                import('expo-speech')
-                                    .then((mod) => {
-                                        try {
-                                            mod.speak(toSpeak, {
-                                                language: 'fr-FR',
-                                                rate: 0.85,
-                                                pitch: 0.6,
-                                                onDone: () => setIsSpeaking(false),
-                                                onError: () => setIsSpeaking(false),
-                                            });
-                                        } catch (e) {
-                                            console.warn('TTS speak failed', e);
-                                            setIsSpeaking(false);
-                                        }
-                                    })
-                                    .catch(() => {
-                                        console.warn('expo-speech not available');
-                                        setIsSpeaking(false);
-                                    });
-                            }}
-                        >
-                            <Text style={styles.headerButtonText}>Classement</Text>
-                        </Pressable>
-                    )}
                     <Pressable
                         style={({ pressed }) => [
                             styles.headerButton,
@@ -789,6 +729,65 @@ export const GameScreen = (): JSX.Element => {
                     { bottom: floatingButtonBottom, right: floatingButtonRight },
                 ]}
             >
+                {focusedInputCount === 0 && (
+                    <Pressable
+                        style={({ pressed }) => [
+                            styles.quickButton,
+                            pressed && styles.headerButtonPressed,
+                            isSpeaking && styles.quickButtonDisabled,
+                            { marginRight: 8 },
+                        ]}
+                        disabled={isSpeaking}
+                        onPress={async () => {
+                            if (isSpeaking) return;
+                            if (!game) return;
+                            setIsSpeaking(true);
+                            const lastRoundIndex = game.rounds.length - 1;
+                            const totals = game.players
+                                ? Array.from(game.players).map((p, idx) => ({
+                                      name: p,
+                                      total: calculateCumulativeScore(
+                                          game.rounds,
+                                          idx,
+                                          lastRoundIndex,
+                                      ),
+                                  }))
+                                : [];
+                            // sort by total ascending (worst to best)
+                            totals.sort((a, b) => b.total - a.total);
+                            if (totals.length === 0) {
+                                setIsSpeaking(false);
+                                return;
+                            }
+                            const parts = totals.map((t) => `${t.name} avec ${t.total}`);
+                            if (parts.length > 0) parts.pop();
+                            const best = totals[totals.length - 1];
+                            const toSpeak = `Le nullos dernier : ${parts.join(
+                                ', ',
+                            )}. Puis le king : ${best.name} avec ${best.total}`;
+                            try {
+                                const alreadySpeaking = await Speech.isSpeakingAsync();
+                                if (alreadySpeaking) {
+                                    await Speech.stop();
+                                }
+                                Speech.speak(toSpeak, {
+                                    language: 'fr-FR',
+                                    rate: 0.85,
+                                    pitch: 0.6,
+                                    onStart: () => setIsSpeaking(true),
+                                    onStopped: () => setIsSpeaking(false),
+                                    onDone: () => setIsSpeaking(false),
+                                    onError: () => setIsSpeaking(false),
+                                });
+                            } catch (e) {
+                                console.warn('TTS speak failed', e);
+                                setIsSpeaking(false);
+                            }
+                        }}
+                    >
+                        <Text style={styles.quickButtonText}>Classement</Text>
+                    </Pressable>
+                )}
                 <Pressable
                     style={[
                         styles.quickButton,
@@ -860,6 +859,8 @@ const styles = StyleSheet.create({
     quickButtonText: { color: '#fff', fontWeight: '600' },
     floatingButtonContainer: {
         position: 'absolute',
+        flexDirection: 'row',
+        alignItems: 'center',
         right: 12,
         zIndex: 20,
         elevation: 20,
