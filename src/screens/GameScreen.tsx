@@ -19,6 +19,7 @@ import {
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
     createNewGame,
+    createNewGameFromPlayers,
     getGame,
     loadCurrentGameId,
     loadSettings,
@@ -237,10 +238,17 @@ export const GameScreen = (): JSX.Element => {
                         onPress={() => {
                             Alert.alert(
                                 'Nouvelle partie',
-                                "Créer une nouvelle partie ? La partie actuelle reste dans l'historique.",
+                                "Choisissez le type de nouvelle partie. La partie actuelle restera dans l'historique.",
                                 [
                                     { text: 'Annuler', style: 'cancel' },
-                                    { text: 'Confirmer', onPress: () => void createFreshGame() },
+                                    {
+                                        text: 'Partie vierge',
+                                        onPress: () => void createFreshGame(),
+                                    },
+                                    {
+                                        text: 'Copier joueurs',
+                                        onPress: () => void createFreshGameWithPlayers(),
+                                    },
                                 ],
                             );
                         }}
@@ -261,6 +269,16 @@ export const GameScreen = (): JSX.Element => {
     const createFreshGame = async () => {
         setIsCreating(true);
         const next = createNewGame();
+        await saveGame(next);
+        await saveCurrentGameId(next.id);
+        setGame(next);
+        setIsCreating(false);
+    };
+
+    const createFreshGameWithPlayers = async () => {
+        setIsCreating(true);
+        const playersList = game ? Array.from(game.players) : ['Joueur 1'];
+        const next = createNewGameFromPlayers(playersList);
         await saveGame(next);
         await saveCurrentGameId(next.id);
         setGame(next);
@@ -914,6 +932,7 @@ const styles = StyleSheet.create({
         marginBottom: 1,
         fontSize: 14,
         flex: 1,
+        color: '#17223b',
     },
     playerHeaderRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
     validateButton: {
@@ -972,6 +991,7 @@ const styles = StyleSheet.create({
         paddingVertical: 6,
         fontSize: 15,
         marginBottom: 6,
+        color: '#17223b',
     },
     cumulativeText: { fontSize: 12, color: '#526087' },
     modalBackdrop: {
@@ -996,6 +1016,7 @@ const styles = StyleSheet.create({
         paddingHorizontal: 10,
         paddingVertical: 8,
         marginBottom: 14,
+        color: '#17223b',
     },
     modalActions: { flexDirection: 'row', justifyContent: 'flex-end', gap: 10 },
     modalButtonSecondary: {

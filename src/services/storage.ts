@@ -28,6 +28,16 @@ export const createNewGame = (): Game => {
     };
 };
 
+export const createNewGameFromPlayers = (playersList: string[]): Game => {
+    const players = new Set(playersList.length > 0 ? playersList : ['Joueur 1']);
+    return {
+        id: createId(),
+        createdAt: new Date().toISOString(),
+        players,
+        rounds: [createEmptyRound(Array.from(players))],
+    };
+};
+
 // ==================== GAMES ====================
 
 const serializeGame = (game: Game): Record<string, unknown> => ({
